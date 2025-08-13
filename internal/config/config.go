@@ -178,7 +178,7 @@ type KeyValue struct {
 	Value interface{}
 }
 
-// idegg flattenMap i just looked at GOrilla docs for this
+// ideg flattenMap i just looked at GOrilla docs for this
 func (c *Config) flattenMap(prefix string, m map[string]interface{}, result *[]KeyValue) {
 	for k, v := range m {
 		key := k
