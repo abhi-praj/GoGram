@@ -7,331 +7,411 @@ import (
 	"strings"
 
 	"github.com/abhi-praj/GoGram/internal/auth"
+	"github.com/abhi-praj/GoGram/internal/chat"
+	"github.com/abhi-praj/GoGram/internal/client"
 	"github.com/abhi-praj/GoGram/internal/config"
-	"github.com/spf13/cobra"
 )
 
 var (
-	version = "0.1.0"
-	rootCmd = &cobra.Command{
-		Use:   "ig-cli",
-		Short: "Instagram CLI",
-		Long: `Instagram CLI.
-
-I don't have a corny bio for this project`,
-		Run: func(cmd *cobra.Command, args []string) {
-			startInteractiveMode()
-		},
-	}
+	version        = "0.1.0"
+	authInstance   *auth.InstagramAuth
+	clientInstance *client.ClientWrapper
+	dmInstance     *chat.DirectMessages
 )
 
-func init() {
-	rootCmd.AddCommand(versionCmd)
-	rootCmd.AddCommand(interactiveCmd)
-	rootCmd.AddCommand(authCmd)
-	rootCmd.AddCommand(configCmd)
-}
+func main() {
+	displayTitle()
 
-var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Show version information",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("InstagramCLI v%s\n", version)
-	},
-}
+	// Initialize auth
+	authInstance = auth.NewInstagramAuth()
 
-var interactiveCmd = &cobra.Command{
-	Use:   "shell",
-	Short: "Start interactive shell mode",
-	Long: `Start an interactive shell where you can type commands directly.
-	
-Example: ig-cli shell`,
-	Run: func(cmd *cobra.Command, args []string) {
-		startInteractiveMode()
-	},
-}
-
-var authCmd = &cobra.Command{
-	Use:   "auth",
-	Short: "Authentication commands (login/logout)",
-}
-
-var loginCmd = &cobra.Command{
-	Use:   "login",
-	Short: "Login to Instagram",
-	Run: func(cmd *cobra.Command, args []string) {
-		auth := auth.NewInstagramAuth()
-		client, err := auth.Login()
-		if err != nil {
-			fmt.Printf("Login failed: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Printf("Successfully logged in as @%s\n", client.GetUsername())
-	},
-}
-
-var logoutCmd = &cobra.Command{
-	Use:   "logout",
-	Short: "Logout from Instagram",
-	Run: func(cmd *cobra.Command, args []string) {
-		auth := auth.NewInstagramAuth()
-		if err := auth.Logout(""); err != nil {
-			fmt.Printf("Logout failed: %v\n", err)
-			os.Exit(1)
-		}
-	},
-}
-
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage Instagram CLI configuration",
-}
-
-var configGetCmd = &cobra.Command{
-	Use:   "get [key]",
-	Short: "Get configuration value",
-	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		key := args[0]
-		cfg := config.GetInstance()
-		value := cfg.Get(key, nil)
-		if value != nil {
-			fmt.Println(value)
-		} else {
-			fmt.Printf("Configuration key '%s' not found\n", key)
-			os.Exit(1)
-		}
-	},
-}
-
-var configSetCmd = &cobra.Command{
-	Use:   "set [key] [value]",
-	Short: "Set configuration value",
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		key := args[0]
-		value := args[1]
-		cfg := config.GetInstance()
-		if err := cfg.Set(key, value); err != nil {
-			fmt.Printf("Failed to set config: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Printf("Set %s = %s\n", key, value)
-	},
-}
-
-var configListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all configuration values",
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.GetInstance()
-		values := cfg.List()
-		for _, kv := range values {
-			fmt.Printf("%s = %v\n", kv.Key, kv.Value)
-		}
-	},
-}
-
-var configResetCmd = &cobra.Command{
-	Use:   "reset",
-	Short: "Reset configuration to default",
-	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Implement config reset functionality
-		fmt.Println("Configuration reset to default")
-	},
+	// Start interactive shell
+	startShell()
 }
 
 func displayTitle() {
-	fmt.Print(
-		`   ██████╗  ██████╗   ██████╗ ██████╗  █████╗ ███╗   ███╗
+	fmt.Print(`
+   ██████╗  ██████╗   ██████╗ ██████╗  █████╗ ███╗   ███╗
   ██╔════╝ ██╔═══██╗ ██╔════╝ ██╔══██╗██╔══██╗████╗ ████║
   ██║  ███╗██║   ██║ ██║  ███╗██████╔╝███████║██╔████╔██║
   ██║   ██║██║   ██║ ██║   ██║██╔══██╗██╔══██║██║╚██╔╝██║
   ╚██████╔╝╚██████╔╝ ╚██████╔╝██║  ██║██║  ██║██║ ╚═╝ ██║
    ╚═════╝  ╚═════╝   ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
 `)
-	fmt.Println("Dedicated to my CSC263 group.")
+	fmt.Println("For the love of the game")
 	fmt.Println()
 	fmt.Println("Type 'help' to see available commands.")
-	fmt.Println("Pro Tip: Use vim-motion ('k', 'j') to navigate chats and messages.")
-	fmt.Printf("Version: %s\n", version)
+	fmt.Printf("Version: %s\n\n", version)
 }
 
-func startInteractiveMode() {
-	displayTitle()
-	fmt.Println("\nInteractive mode activated")
-	fmt.Println("Type commands directly (e.g., 'help', 'auth login', 'auth logout')")
-	fmt.Println("Type 'exit' or 'quit' to close the CLI")
-	fmt.Println("Type 'clear' to clear the screen")
-	fmt.Println()
+func startShell() {
+	reader := bufio.NewReader(os.Stdin)
 
-	scanner := bufio.NewScanner(os.Stdin)
-	fmt.Print("ig-cli> ")
+	for {
+		fmt.Print("ig-cli> ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			if err.Error() == "EOF" {
+				fmt.Println("\nReceived EOF. This usually means stdin was closed.")
+				fmt.Println("Attempting to recover...")
 
-	for scanner.Scan() {
-		input := strings.TrimSpace(scanner.Text())
-
-		if input == "" {
-			fmt.Print("ig-cli> ")
+				// Try to recreate the reader
+				reader = bufio.NewReader(os.Stdin)
+				fmt.Println("Reader recreated. Please try your command again.")
+				continue
+			}
+			fmt.Printf("Error reading input: %v\n", err)
+			fmt.Println("Continuing... Press Enter to continue or Ctrl+C to exit.")
 			continue
 		}
 
+		input = strings.TrimSpace(input)
+		if input == "" {
+			continue
+		}
+
+		// Check for exit command first
 		if input == "exit" || input == "quit" {
 			fmt.Println("Goodbye!")
-			os.Exit(0)
+			break
 		}
 
-		if input == "clear" {
-			// Clear screen (Windows)
-			fmt.Print("\033[H\033[2J")
-			displayTitle()
-			fmt.Print("ig-cli> ")
-			continue
+		// Parse and execute command
+		if err := executeCommand(input); err != nil {
+			fmt.Printf("Error: %v\n", err)
 		}
-
-		executeInteractiveCommand(input)
-		fmt.Print("ig-cli> ")
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error reading input: %v\n", err)
-		os.Exit(1)
 	}
 }
 
-func executeInteractiveCommand(input string) {
-	args := strings.Fields(input)
-	if len(args) == 0 {
-		return
+func executeCommand(input string) error {
+	parts := strings.Fields(input)
+	if len(parts) == 0 {
+		return nil
 	}
 
-	command := args[0]
-	args = args[1:]
+	command := strings.ToLower(parts[0])
+	args := parts[1:]
 
 	switch command {
 	case "help":
-		displayInteractiveHelp()
+		showHelp()
 	case "version":
 		fmt.Printf("InstagramCLI v%s\n", version)
-	case "auth":
-		handleAuthCommand(args)
+	case "login":
+		return handleLogin()
+	case "logout":
+		return handleLogout()
+	case "status":
+		showStatus()
+	case "chat":
+		return handleChatCommand(args)
 	case "config":
-		handleConfigCommand(args)
+		return handleConfigCommand(args)
 	case "clear":
-		// Already handled above
-		return
+		clearScreen()
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Type 'help' to see available commands")
+		fmt.Printf("Unknown command: %s. Type 'help' for available commands.\n", command)
 	}
+
+	return nil
 }
 
-func displayInteractiveHelp() {
-	fmt.Println("\nAvailable commands:")
+func showHelp() {
+	fmt.Println("Available commands:")
 	fmt.Println("  help                    - Show this help message")
 	fmt.Println("  version                 - Show version information")
-	fmt.Println("  auth login              - Login to Instagram")
-	fmt.Println("  auth logout             - Logout from Instagram")
-	fmt.Println("  config get [key]        - Get configuration value")
-	fmt.Println("  config set [key] [value] - Set configuration value")
-	fmt.Println("  config list             - List all configuration values")
-	fmt.Println("  config reset            - Reset configuration to default")
-	fmt.Println("  clear                   - Clear the screen")
-	fmt.Println("  exit/quit               - Exit the CLI")
+	fmt.Println("  login                   - Login to Instagram")
+	fmt.Println("  logout                  - Logout from Instagram")
+	fmt.Println("  status                  - Show current login status")
+	fmt.Println("  chat <id>               - Open interactive chat with chat ID")
+	fmt.Println("  chat list               - List recent chats (last 5)")
+	fmt.Println("  chat list all           - List all chats")
+	fmt.Println("  chat send <id> <msg>    - Send message to chat by ID")
+	fmt.Println("  chat history <id>       - Show chat history")
+	fmt.Println("  chat search <query>     - Search chats")
+	fmt.Println("  config list             - List configuration values")
+	fmt.Println("  config get <key>        - Get configuration value")
+	fmt.Println("  config set <key> <val>  - Set configuration value")
+	fmt.Println("  clear                   - Clear screen")
+	fmt.Println("  exit/quit               - Exit the application")
 	fmt.Println()
 }
 
-func handleAuthCommand(args []string) {
-	if len(args) == 0 {
-		fmt.Println("Auth subcommands: login, logout")
+func handleLogin() error {
+	fmt.Println("Attempting to login...")
+
+	client, err := authInstance.Login()
+	if err != nil {
+		return fmt.Errorf("login failed: %v", err)
+	}
+
+	clientInstance = client
+	dmInstance = chat.NewDirectMessages(client)
+
+	return nil
+}
+
+func handleLogout() error {
+	if clientInstance == nil {
+		return fmt.Errorf("not logged in")
+	}
+
+	if err := authInstance.Logout(""); err != nil {
+		return fmt.Errorf("logout failed: %v", err)
+	}
+
+	clientInstance = nil
+	dmInstance = nil
+	return nil
+}
+
+func showStatus() {
+	if clientInstance == nil {
+		fmt.Println("Status: Not logged in")
 		return
 	}
 
-	subcommand := args[0]
-	switch subcommand {
-	case "login":
-		auth := auth.NewInstagramAuth()
-		client, err := auth.Login()
-		if err != nil {
-			fmt.Printf("Login failed: %v\n", err)
-			return
+	fmt.Printf("Status: Logged in as @%s\n", clientInstance.GetUsername())
+
+	// Show unread count if available
+	if dmInstance != nil {
+		if count, err := dmInstance.GetUnreadCount(); err == nil {
+			fmt.Printf("Unread messages: %d\n", count)
 		}
-		fmt.Printf("Successfully logged in as @%s\n", client.GetUsername())
-	case "logout":
-		auth := auth.NewInstagramAuth()
-		if err := auth.Logout(""); err != nil {
-			fmt.Printf("Logout failed: %v\n", err)
-			return
-		}
-		fmt.Println("Successfully logged out")
-	default:
-		fmt.Printf("Unknown auth subcommand: %s\n", subcommand)
-		fmt.Println("Available auth subcommands: login, logout")
 	}
 }
 
-func handleConfigCommand(args []string) {
+func handleChatCommand(args []string) error {
 	if len(args) == 0 {
-		fmt.Println("Config subcommands: get, set, list, reset")
-		return
+		fmt.Println("Usage: chat <command> [args]")
+		fmt.Println("Commands: <id>, list, send, history, search")
+		fmt.Println("  <id> - Open interactive chat with chat ID")
+		return nil
 	}
 
-	subcommand := args[0]
+	if clientInstance == nil {
+		return fmt.Errorf("not logged in. Use 'login' first.")
+	}
+
+	if !chat.IsSubcommand(args[0]) {
+		// just make it an interactive chat if theres an id and nothing else
+		return startInteractiveChat(args[0])
+	}
+
+	subcommand := strings.ToLower(args[0])
+
 	switch subcommand {
-	case "get":
-		if len(args) < 2 {
-			fmt.Println("Usage: config get [key]")
-			return
-		}
-		key := args[1]
-		cfg := config.GetInstance()
-		value := cfg.Get(key, nil)
-		if value != nil {
-			fmt.Println(value)
-		} else {
-			fmt.Printf("Configuration key '%s' not found\n", key)
-		}
-	case "set":
-		if len(args) < 3 {
-			fmt.Println("Usage: config set [key] [value]")
-			return
-		}
-		key := args[1]
-		value := args[2]
-		cfg := config.GetInstance()
-		if err := cfg.Set(key, value); err != nil {
-			fmt.Printf("Failed to set config: %v\n", err)
-			return
-		}
-		fmt.Printf("Set %s = %s\n", key, value)
 	case "list":
-		cfg := config.GetInstance()
+		if len(args) > 1 && args[1] == "all" {
+			return listAllChats()
+		}
+		return listChats()
+	case "send":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: chat send <chat_id> <message>")
+		}
+		return sendMessage(args[1], strings.Join(args[2:], " "))
+	case "history":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: chat history <chat_id>")
+		}
+		return showChatHistory(args[1])
+	case "search":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: chat search <query>")
+		}
+		return searchChats(args[1])
+	default:
+		fmt.Printf("Unknown chat command: %s\n", subcommand)
+		fmt.Println("Available commands: <id>, list, send, history, search")
+	}
+
+	return nil
+}
+
+func listChats() error {
+	chats, err := dmInstance.GetChats()
+	if err != nil {
+		return fmt.Errorf("failed to get chats: %v", err)
+	}
+
+	if len(chats) == 0 {
+		fmt.Println("No chats found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d chats:\n", len(chats))
+	fmt.Printf("%-8s %-20s %s\n", "ID", "Title", "Last Message")
+	fmt.Printf("%-8s %-20s %s\n", "--", "-----", "------------")
+
+	for _, chat := range chats {
+		lastMsg := chat.LastMessage
+		if lastMsg == "" {
+			lastMsg = "(no message)"
+		} else if len(lastMsg) > 30 {
+			lastMsg = lastMsg[:27] + "..."
+		}
+
+		// Truncate title if too long
+		title := chat.Title
+		if len(title) > 18 {
+			title = title[:15] + "..."
+		}
+
+		fmt.Printf("%-8s %-20s %s\n", chat.InternalID, title, lastMsg)
+	}
+
+	return nil
+}
+
+func sendMessage(chatID, message string) error {
+	if err := dmInstance.SendMessageByInternalID(chatID, message); err != nil {
+		return fmt.Errorf("failed to send message: %v", err)
+	}
+
+	fmt.Printf("Message sent to chat %s\n", chatID)
+	return nil
+}
+
+func showChatHistory(chatID string) error {
+	messages, err := dmInstance.GetChatHistory(chatID, 20)
+	if err != nil {
+		return fmt.Errorf("failed to get chat history: %v", err)
+	}
+
+	if len(messages) == 0 {
+		fmt.Println("No messages found.")
+		return nil
+	}
+
+	fmt.Printf("Chat history (showing last %d messages):\n", len(messages))
+	fmt.Printf("%-20s %-15s %s\n", "Time", "Sender", "Message")
+	fmt.Printf("%-20s %-15s %s\n", "----", "------", "-------")
+
+	for _, msg := range messages {
+		timeStr := msg.Timestamp.Format("2006-01-02 15:04:05")
+		fmt.Printf("%-20s %-15s %s\n", timeStr, msg.Sender, msg.Text)
+	}
+
+	return nil
+}
+
+func searchChats(query string) error {
+	chats, err := dmInstance.SearchChats(query)
+	if err != nil {
+		return fmt.Errorf("failed to search chats: %v", err)
+	}
+
+	if len(chats) == 0 {
+		fmt.Printf("No chats found matching '%s'\n", query)
+		return nil
+	}
+
+	fmt.Printf("Found %d chats matching '%s':\n", len(chats), query)
+	fmt.Printf("%-8s %-20s %s\n", "ID", "Title", "Last Message")
+	fmt.Printf("%-8s %-20s %s\n", "--", "-----", "------------")
+
+	for _, chat := range chats {
+		lastMsg := chat.LastMessage
+		if len(lastMsg) > 30 {
+			lastMsg = lastMsg[:27] + "..."
+		}
+		fmt.Printf("%-8s %-20s %s\n", chat.InternalID, chat.Title, lastMsg)
+	}
+
+	return nil
+}
+
+func listAllChats() error {
+	chats, err := dmInstance.GetChatsWithLimit(0) // 0 means no limit
+	if err != nil {
+		return fmt.Errorf("failed to get chats: %v", err)
+	}
+
+	if len(chats) == 0 {
+		fmt.Println("No chats found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d chats:\n", len(chats))
+	fmt.Printf("%-8s %-20s %s\n", "ID", "Title", "Last Message")
+	fmt.Printf("%-8s %-20s %s\n", "--", "-----", "------------")
+
+	for _, chat := range chats {
+		lastMsg := chat.LastMessage
+		if lastMsg == "" {
+			lastMsg = "(no message)"
+		} else if len(lastMsg) > 30 {
+			lastMsg = lastMsg[:27] + "..."
+		}
+
+		// Truncate title if too long
+		title := chat.Title
+		if len(title) > 18 {
+			title = title[:15] + "..."
+		}
+
+		fmt.Printf("%-8s %-20s %s\n", chat.InternalID, title, lastMsg)
+	}
+
+	return nil
+}
+
+func handleConfigCommand(args []string) error {
+	if len(args) == 0 {
+		fmt.Println("Usage: config <command> [args]")
+		fmt.Println("Commands: list, get, set")
+		return nil
+	}
+
+	subcommand := strings.ToLower(args[0])
+	cfg := config.GetInstance()
+
+	switch subcommand {
+	case "list":
 		values := cfg.List()
 		for _, kv := range values {
 			fmt.Printf("%s = %v\n", kv.Key, kv.Value)
 		}
-	case "reset":
-		// TODO: Implement config reset functionality
-		fmt.Println("Configuration reset to default")
+	case "get":
+		if len(args) < 2 {
+			return fmt.Errorf("usage: config get <key>")
+		}
+		value := cfg.Get(args[1], nil)
+		if value != nil {
+			fmt.Println(value)
+		} else {
+			fmt.Printf("Configuration key '%s' not found\n", args[1])
+		}
+	case "set":
+		if len(args) < 3 {
+			return fmt.Errorf("usage: config set <key> <value>")
+		}
+		if err := cfg.Set(args[1], args[2]); err != nil {
+			return fmt.Errorf("failed to set config: %v", err)
+		}
+		fmt.Printf("✅ Set %s = %s\n", args[1], args[2])
 	default:
-		fmt.Printf("Unknown config subcommand: %s\n", subcommand)
-		fmt.Println("Available config subcommands: get, set, list, reset")
+		fmt.Printf("Unknown config command: %s\n", subcommand)
+		fmt.Println("Available commands: list, get, set")
 	}
+
+	return nil
 }
 
-func main() {
-	// Add auth subcommands
-	authCmd.AddCommand(loginCmd)
-	authCmd.AddCommand(logoutCmd)
+func clearScreen() {
+	// Simple clear for Windows
+	fmt.Print("\033[H\033[2J")
+}
 
-	// Add config subcommands
-	configCmd.AddCommand(configGetCmd)
-	configCmd.AddCommand(configSetCmd)
-	configCmd.AddCommand(configListCmd)
-	configCmd.AddCommand(configResetCmd)
+// startInteractiveChat starts an interactive chat session
+func startInteractiveChat(chatID string) error {
+	fmt.Printf("Starting interactive chat with ID: %s\n", chatID)
+	fmt.Println("Loading chat...")
 
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	if err := dmInstance.StartInteractiveChat(chatID); err != nil {
+		return fmt.Errorf("failed to start interactive chat: %v", err)
 	}
+
+	return nil
 }
