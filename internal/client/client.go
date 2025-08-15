@@ -120,6 +120,20 @@ func (c *ClientWrapper) GetUsername() string {
 	return c.username
 }
 
+// GetUserID returns the current user's Instagram ID
+func (c *ClientWrapper) GetUserID() string {
+	if c.instaClient == nil {
+		return ""
+	}
+
+	// Try to get the account info to extract user ID
+	if c.instaClient.Account != nil {
+		return fmt.Sprintf("%d", c.instaClient.Account.ID)
+	}
+
+	return ""
+}
+
 // GetInstaClient returns the underlying goinsta client
 func (c *ClientWrapper) GetInstaClient() *goinsta.Instagram {
 	return c.instaClient
