@@ -14,8 +14,8 @@ import (
 var DefaultConfig = map[string]interface{}{
 	"language": "en",
 	"login": map[string]interface{}{
-		"default_username": nil,
-		"current_username": nil,
+		"default_username": "",
+		"current_username": "",
 	},
 	"chat": map[string]interface{}{
 		"layout": "compact",
