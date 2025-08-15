@@ -26,18 +26,29 @@ func NewInstagramAuth() *InstagramAuth {
 // Login attempts to login to Instagram, first trying session then username/password
 func (a *InstagramAuth) Login() (*client.ClientWrapper, error) {
 	// Try to get current username from config
-	currentUsername := a.config.Get("login.current_username", "").(string)
+	usernameValue := a.config.Get("login.current_username", "")
+	var currentUsername string
+
+	if usernameValue != nil {
+		if username, ok := usernameValue.(string); ok {
+			currentUsername = username
+		} else {
+			currentUsername = ""
+		}
+	} else {
+		currentUsername = ""
+	}
 
 	a.client = client.NewClientWrapper(currentUsername)
 
-	// Try to login by session first
+	// login by session first
 	fmt.Println("Attempting to login with saved session...")
 	if err := a.client.LoginBySession(); err == nil {
 		fmt.Printf("Successfully logged in as @%s\n", a.client.GetUsername())
 		return a.client, nil
 	}
 
-	// Try by username/password
+	// by username/password
 	fmt.Println("Session login failed, attempting username/password login...")
 	return a.loginByUsername()
 }
@@ -100,7 +111,12 @@ func (a *InstagramAuth) loginByUsername() (*client.ClientWrapper, error) {
 // Logout logs out the current user
 func (a *InstagramAuth) Logout(username string) error {
 	if username == "" {
-		username = a.config.Get("login.current_username", "").(string)
+		usernameValue := a.config.Get("login.current_username", "")
+		if usernameValue != nil {
+			if usernameStr, ok := usernameValue.(string); ok {
+				username = usernameStr
+			}
+		}
 	}
 
 	if username == "" {
@@ -123,17 +139,26 @@ func (a *InstagramAuth) Logout(username string) error {
 	}
 
 	// Clear both current and default username if they match
-	if a.config.Get("login.default_username", "").(string) == username {
-		a.config.Set("login.default_username", nil)
+	defaultUsernameValue := a.config.Get("login.default_username", "")
+	if defaultUsernameValue != nil {
+		if defaultUsername, ok := defaultUsernameValue.(string); ok && defaultUsername == username {
+			a.config.Set("login.default_username", nil)
+		}
 	}
 
-	fmt.Printf("✅ Successfully logged out @%s\n", username)
+	fmt.Printf("Successfully logged out @%s\n", username)
 	return nil
 }
 
 // GetCurrentUsername returns the currently logged in username
 func (a *InstagramAuth) GetCurrentUsername() string {
-	return a.config.Get("login.current_username", "").(string)
+	usernameValue := a.config.Get("login.current_username", "")
+	if usernameValue != nil {
+		if username, ok := usernameValue.(string); ok {
+			return username
+		}
+	}
+	return ""
 }
 
 // IsLoggedIn checks if there's an active session
