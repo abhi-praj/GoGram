@@ -30,13 +30,13 @@ func TestIsSubcommand(t *testing.T) {
 		expected bool
 	}{
 		{"list", true},
-		{"send", true},
-		{"history", true},
-		{"search", true},
+		{"send", false},
+		{"history", false},
+		{"search", false},
 		{"123456", false},
 		{"abc123", false},
 		{"LIST", true},
-		{"Send", true},
+		{"Send", false},
 	}
 
 	for _, tc := range testCases {

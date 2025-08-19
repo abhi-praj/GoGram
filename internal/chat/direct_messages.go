@@ -14,22 +14,25 @@ import (
 
 // DirectMessages handles Instagram direct messaging functionality
 type DirectMessages struct {
-	client         *client.ClientWrapper
-	insta          *goinsta.Instagram
-	internalIDMap  map[string]string
-	nextInternalID int
-	currentUserID  string
+	client          *client.ClientWrapper
+	insta           *goinsta.Instagram
+	internalIDMap   map[string]string
+	nextInternalID  int
+	currentUserID   string
+	notificationMgr *NotificationManager
 }
 
 // NewDirectMessages creates a new DirectMessages instance
 func NewDirectMessages(client *client.ClientWrapper) *DirectMessages {
-	return &DirectMessages{
+	dm := &DirectMessages{
 		client:         client,
 		insta:          client.GetInstaClient(),
 		internalIDMap:  make(map[string]string),
 		nextInternalID: 100000,
 		currentUserID:  client.GetUserID(),
 	}
+	dm.notificationMgr = NewNotificationManager(dm)
+	return dm
 }
 
 // Chat represents a single chat conversation
@@ -346,4 +349,53 @@ func (dm *DirectMessages) GetUnreadCount() (int, error) {
 func (dm *DirectMessages) StartInteractiveChat(chatID string) error {
 	interactiveChat := NewInteractiveChat(dm, chatID)
 	return interactiveChat.Start()
+}
+
+// StartNotifications starts background message notifications
+func (dm *DirectMessages) StartNotifications() error {
+	if dm.notificationMgr == nil {
+		dm.notificationMgr = NewNotificationManager(dm)
+	}
+	return dm.notificationMgr.Start()
+}
+
+// StopNotifications stops background message notifications
+func (dm *DirectMessages) StopNotifications() {
+	if dm.notificationMgr != nil {
+		dm.notificationMgr.Stop()
+	}
+}
+
+// IsNotificationRunning returns whether notifications are active
+func (dm *DirectMessages) IsNotificationRunning() bool {
+	return dm.notificationMgr != nil && dm.notificationMgr.IsRunning()
+}
+
+// PauseNotifications pauses background notifications
+func (dm *DirectMessages) PauseNotifications() {
+	if dm.notificationMgr != nil {
+		dm.notificationMgr.Pause()
+	}
+}
+
+// ResumeNotifications resumes background notifications
+func (dm *DirectMessages) ResumeNotifications() {
+	if dm.notificationMgr != nil {
+		dm.notificationMgr.Resume()
+	}
+}
+
+// RefreshNotifications refreshes the notification system state
+func (dm *DirectMessages) RefreshNotifications() {
+	if dm.notificationMgr != nil {
+		dm.notificationMgr.Refresh()
+	}
+}
+
+// GetNotificationDebugInfo returns debug information about the notification system
+func (dm *DirectMessages) GetNotificationDebugInfo() map[string]interface{} {
+	if dm.notificationMgr != nil {
+		return dm.notificationMgr.GetDebugInfo()
+	}
+	return nil
 }

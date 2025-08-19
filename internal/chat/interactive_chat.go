@@ -20,21 +20,23 @@ type InteractiveChat struct {
 	reader       *bufio.Reader
 	stopChan     chan bool
 	mutex        sync.Mutex
+	lastSentText string
 }
 
 // NewInteractiveChat creates a new interactive chat instance
 func NewInteractiveChat(dm *DirectMessages, chatID string) *InteractiveChat {
 	return &InteractiveChat{
-		dm:       dm,
-		chatID:   chatID,
-		reader:   bufio.NewReader(os.Stdin),
-		stopChan: make(chan bool),
+		dm:           dm,
+		chatID:       chatID,
+		reader:       bufio.NewReader(os.Stdin),
+		stopChan:     make(chan bool),
+		lastSentText: "",
 	}
 }
 
 // IsSubcommand checks if the given string is a known subcommand
 func IsSubcommand(arg string) bool {
-	subcommands := []string{"list", "send", "history", "search"}
+	subcommands := []string{"list"}
 	arg = strings.ToLower(arg)
 	for _, sub := range subcommands {
 		if arg == sub {
@@ -46,9 +48,18 @@ func IsSubcommand(arg string) bool {
 
 // Start begins the interactive chat session
 func (ic *InteractiveChat) Start() error {
+	// Pause global notifications while in interactive chat
+	if ic.dm.notificationMgr != nil {
+		ic.dm.notificationMgr.Pause()
+	}
+
 	// Get chat details
 	chat, err := ic.dm.GetChatByInternalID(ic.chatID)
 	if err != nil {
+		// Resume notifications on error
+		if ic.dm.notificationMgr != nil {
+			ic.dm.notificationMgr.Resume()
+		}
 		return fmt.Errorf("failed to get chat: %v", err)
 	}
 
@@ -62,6 +73,10 @@ func (ic *InteractiveChat) Start() error {
 	}
 
 	if conversation == nil {
+		// Resume notifications on error
+		if ic.dm.notificationMgr != nil {
+			ic.dm.notificationMgr.Resume()
+		}
 		return fmt.Errorf("conversation not found")
 	}
 
@@ -83,7 +98,14 @@ func (ic *InteractiveChat) Start() error {
 	go ic.messageReceiver()
 
 	// Start input handler
-	return ic.inputHandler()
+	err = ic.inputHandler()
+
+	// Always resume notifications when exiting chat
+	if ic.dm.notificationMgr != nil {
+		ic.dm.notificationMgr.Resume()
+	}
+
+	return err
 }
 
 // displayChatHeader shows the chat information header
@@ -169,13 +191,10 @@ func (ic *InteractiveChat) inputHandler() error {
 			if err := ic.sendMessage(input); err != nil {
 				fmt.Printf("Failed to send message: %v\n", err)
 			} else {
-				// Display sent message immediately
-				msg := &Message{
-					Text:      input,
-					Sender:    "You",
-					Timestamp: time.Now(),
-				}
-				ic.displayMessage(msg, false)
+				// Track the sent message to avoid duplicate display
+				ic.lastSentText = input
+				// Show subtle sending indicator that will be replaced by the actual message
+				fmt.Printf("Sending...\n")
 			}
 		}
 	}
@@ -236,7 +255,7 @@ func (ic *InteractiveChat) sendMessage(text string) error {
 
 // messageReceiver continuously checks for new messages
 func (ic *InteractiveChat) messageReceiver() {
-	ticker := time.NewTicker(3 * time.Second) // Check every 3 seconds
+	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -280,7 +299,8 @@ func (ic *InteractiveChat) checkForNewMessages() {
 		latestTime := time.Unix(latestItem.Timestamp, 0)
 
 		currentUserIDInt, _ := strconv.ParseInt(ic.dm.currentUserID, 10, 64)
-		if latestTime.After(time.Now().Add(-5*time.Second)) &&
+
+		if latestTime.After(time.Now().Add(-10*time.Second)) &&
 			latestItem.UserID != currentUserIDInt {
 
 			msg := &Message{
@@ -290,7 +310,7 @@ func (ic *InteractiveChat) checkForNewMessages() {
 				Type:      "text",
 			}
 
-			// Determine sender name
+			// todo make sure the sender logic is correct
 			var senderName string
 			for _, user := range conversation.Users {
 				if user.ID == latestItem.UserID {
@@ -308,6 +328,24 @@ func (ic *InteractiveChat) checkForNewMessages() {
 			msg.Sender = senderName
 
 			ic.displayMessage(msg, true)
+		}
+
+		// Handle sent messages (messages from current user that were just sent)
+		if latestItem.UserID == currentUserIDInt &&
+			latestTime.After(time.Now().Add(-10*time.Second)) &&
+			latestItem.Text == ic.lastSentText &&
+			ic.lastSentText != "" {
+
+			msg := &Message{
+				ID:        latestItem.ID,
+				Text:      latestItem.Text,
+				Timestamp: latestTime,
+				Type:      "text",
+				Sender:    "You",
+			}
+
+			ic.displayMessage(msg, false)
+			ic.lastSentText = ""
 		}
 	}
 }

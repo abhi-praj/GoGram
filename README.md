@@ -9,6 +9,7 @@ A Go implementation of Instagram CLI client, built with the goal of providing a 
 - **Configuration**: YAML-based configuration with dot notation support
 - **Account Switching**: Switch between multiple Instagram accounts
 - **2FA Support**: Built-in support for two-factor authentication
+- **Interactive Chat**: Real-time messaging with automatic message updates
 
 ## Installation
 
@@ -52,6 +53,16 @@ go build -o ig-cli cmd/ig-cli/main.go
 
 # Switch to a different account
 ./ig-cli auth switch username
+
+### Interactive Chat
+
+```bash
+# Open interactive chat with a specific chat ID
+./ig-cli chat <chat_id>
+
+# List available chats to find chat IDs
+./ig-cli chat list
+```
 ```
 
 ### Configuration
@@ -98,6 +109,16 @@ advanced:
 ## Session Management
 
 Sessions are automatically saved to `~/.instagram-cli/users/<username>/session.json` after successful login. This allows you to stay logged in between application restarts.
+
+## Interactive Chat
+
+For detailed information about the interactive chat feature, see [INTERACTIVE_CHAT.md](INTERACTIVE_CHAT.md).
+
+The interactive chat provides:
+- Real-time messaging with automatic updates
+- Last 10 messages displayed on entry
+- Built-in commands for chat management
+- Support for both direct messages and group chats
 
 ## Development
 

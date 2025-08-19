@@ -96,7 +96,7 @@ func executeCommand(input string) error {
 	case "help":
 		showHelp()
 	case "version":
-		fmt.Printf("InstagramCLI v%s\n", version)
+		fmt.Printf("GoGram v%s\n", version)
 	case "login":
 		return handleLogin()
 	case "logout":
@@ -109,6 +109,8 @@ func executeCommand(input string) error {
 		return handleConfigCommand(args)
 	case "clear":
 		clearScreen()
+	case "notifications":
+		return handleNotificationsCommand(args)
 	default:
 		fmt.Printf("Unknown command: %s. Type 'help' for available commands.\n", command)
 	}
@@ -126,9 +128,9 @@ func showHelp() {
 	fmt.Println("  chat <id>               - Open interactive chat with chat ID")
 	fmt.Println("  chat list               - List recent chats (last 5)")
 	fmt.Println("  chat list all           - List all chats")
-	fmt.Println("  chat send <id> <msg>    - Send message to chat by ID")
-	fmt.Println("  chat history <id>       - Show chat history")
-	fmt.Println("  chat search <query>     - Search chats")
+	fmt.Println("  notifications start     - Start background message notifications")
+	fmt.Println("  notifications stop      - Stop background message notifications")
+	fmt.Println("  notifications status      - Check notification status")
 	fmt.Println("  config list             - List configuration values")
 	fmt.Println("  config get <key>        - Get configuration value")
 	fmt.Println("  config set <key> <val>  - Set configuration value")
@@ -148,12 +150,26 @@ func handleLogin() error {
 	clientInstance = client
 	dmInstance = chat.NewDirectMessages(client)
 
+	// Start background notifications by default
+	fmt.Println("Starting background message notifications...")
+	if err := dmInstance.StartNotifications(); err != nil {
+		fmt.Printf("Warning: Could not start notifications: %v\n", err)
+	} else {
+		fmt.Println("Background message notifications started")
+	}
+
 	return nil
 }
 
 func handleLogout() error {
 	if clientInstance == nil {
 		return fmt.Errorf("not logged in")
+	}
+
+	// Stop notifications before logout
+	if dmInstance != nil {
+		fmt.Println("Stopping background message notifications...")
+		dmInstance.StopNotifications()
 	}
 
 	if err := authInstance.Logout(""); err != nil {
@@ -178,13 +194,19 @@ func showStatus() {
 		if count, err := dmInstance.GetUnreadCount(); err == nil {
 			fmt.Printf("Unread messages: %d\n", count)
 		}
+
+		// Show notification status
+		if dmInstance.IsNotificationRunning() {
+			fmt.Println("Background notifications: RUNNING")
+		} else {
+			fmt.Println("Background notifications: STOPPED")
+		}
 	}
 }
 
 func handleChatCommand(args []string) error {
 	if len(args) == 0 {
-		fmt.Println("Usage: chat <command> [args]")
-		fmt.Println("Commands: <id>, list, send, history, search")
+		fmt.Println("Usage: chat <id>")
 		fmt.Println("  <id> - Open interactive chat with chat ID")
 		return nil
 	}
@@ -206,24 +228,9 @@ func handleChatCommand(args []string) error {
 			return listAllChats()
 		}
 		return listChats()
-	case "send":
-		if len(args) < 3 {
-			return fmt.Errorf("usage: chat send <chat_id> <message>")
-		}
-		return sendMessage(args[1], strings.Join(args[2:], " "))
-	case "history":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: chat history <chat_id>")
-		}
-		return showChatHistory(args[1])
-	case "search":
-		if len(args) < 2 {
-			return fmt.Errorf("usage: chat search <query>")
-		}
-		return searchChats(args[1])
 	default:
 		fmt.Printf("Unknown chat command: %s\n", subcommand)
-		fmt.Println("Available commands: <id>, list, send, history, search")
+		fmt.Println("Available commands: <id>, list")
 	}
 
 	return nil
@@ -259,64 +266,6 @@ func listChats() error {
 		}
 
 		fmt.Printf("%-8s %-20s %s\n", chat.InternalID, title, lastMsg)
-	}
-
-	return nil
-}
-
-func sendMessage(chatID, message string) error {
-	if err := dmInstance.SendMessageByInternalID(chatID, message); err != nil {
-		return fmt.Errorf("failed to send message: %v", err)
-	}
-
-	fmt.Printf("Message sent to chat %s\n", chatID)
-	return nil
-}
-
-func showChatHistory(chatID string) error {
-	messages, err := dmInstance.GetChatHistory(chatID, 20)
-	if err != nil {
-		return fmt.Errorf("failed to get chat history: %v", err)
-	}
-
-	if len(messages) == 0 {
-		fmt.Println("No messages found.")
-		return nil
-	}
-
-	fmt.Printf("Chat history (showing last %d messages):\n", len(messages))
-	fmt.Printf("%-20s %-15s %s\n", "Time", "Sender", "Message")
-	fmt.Printf("%-20s %-15s %s\n", "----", "------", "-------")
-
-	for _, msg := range messages {
-		timeStr := msg.Timestamp.Format("2006-01-02 15:04:05")
-		fmt.Printf("%-20s %-15s %s\n", timeStr, msg.Sender, msg.Text)
-	}
-
-	return nil
-}
-
-func searchChats(query string) error {
-	chats, err := dmInstance.SearchChats(query)
-	if err != nil {
-		return fmt.Errorf("failed to search chats: %v", err)
-	}
-
-	if len(chats) == 0 {
-		fmt.Printf("No chats found matching '%s'\n", query)
-		return nil
-	}
-
-	fmt.Printf("Found %d chats matching '%s':\n", len(chats), query)
-	fmt.Printf("%-8s %-20s %s\n", "ID", "Title", "Last Message")
-	fmt.Printf("%-8s %-20s %s\n", "--", "-----", "------------")
-
-	for _, chat := range chats {
-		lastMsg := chat.LastMessage
-		if len(lastMsg) > 30 {
-			lastMsg = lastMsg[:27] + "..."
-		}
-		fmt.Printf("%-8s %-20s %s\n", chat.InternalID, chat.Title, lastMsg)
 	}
 
 	return nil
@@ -411,6 +360,58 @@ func startInteractiveChat(chatID string) error {
 
 	if err := dmInstance.StartInteractiveChat(chatID); err != nil {
 		return fmt.Errorf("failed to start interactive chat: %v", err)
+	}
+
+	return nil
+}
+
+// handleNotificationsCommand handles notification-related commands
+func handleNotificationsCommand(args []string) error {
+	if clientInstance == nil {
+		return fmt.Errorf("not logged in. Use 'login' first.")
+	}
+
+	if len(args) == 0 {
+		fmt.Println("Usage: notifications <command>")
+		fmt.Println("Commands: start, stop, status")
+		return nil
+	}
+
+	command := strings.ToLower(args[0])
+
+	switch command {
+	case "start":
+		if dmInstance.IsNotificationRunning() {
+			fmt.Println("Notifications are already running")
+			return nil
+		}
+
+		fmt.Println("Starting background message notifications...")
+		if err := dmInstance.StartNotifications(); err != nil {
+			return fmt.Errorf("failed to start notifications: %v", err)
+		}
+		fmt.Println("Background message notifications started")
+
+	case "stop":
+		if !dmInstance.IsNotificationRunning() {
+			fmt.Println("Notifications are not running")
+			return nil
+		}
+
+		fmt.Println("Stopping background message notifications...")
+		dmInstance.StopNotifications()
+		fmt.Println("Background message notifications stopped")
+
+	case "status":
+		if dmInstance.IsNotificationRunning() {
+			fmt.Println("Background message notifications: RUNNING")
+		} else {
+			fmt.Println("Background message notifications: STOPPED")
+		}
+
+	default:
+		fmt.Printf("Unknown notifications command: %s\n", command)
+		fmt.Println("Available commands: start, stop, status")
 	}
 
 	return nil
