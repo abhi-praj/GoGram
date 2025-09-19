@@ -10,6 +10,7 @@ import (
 	"github.com/abhi-praj/GoGram/internal/chat"
 	"github.com/abhi-praj/GoGram/internal/client"
 	"github.com/abhi-praj/GoGram/internal/config"
+	"github.com/rivo/tview"
 )
 
 var (
@@ -60,7 +61,7 @@ func startShell() {
 				fmt.Println("Reader recreated. Please try your command again.")
 				continue
 			}
-			fmt.Printf("Error reading input: %v\n", err)
+			fmt.Printf("Error reading input: %v\n", input)
 			fmt.Println("Continuing... Press Enter to continue or Ctrl+C to exit.")
 			continue
 		}
@@ -128,6 +129,7 @@ func showHelp() {
 	fmt.Println("  chat <id>               - Open interactive chat with chat ID")
 	fmt.Println("  chat list               - List recent chats (last 5)")
 	fmt.Println("  chat list all           - List all chats")
+	fmt.Println("  chat start              - Start the new chat interface")
 	fmt.Println("  notifications start     - Start background message notifications")
 	fmt.Println("  notifications stop      - Stop background message notifications")
 	fmt.Println("  notifications status      - Check notification status")
@@ -206,8 +208,11 @@ func showStatus() {
 
 func handleChatCommand(args []string) error {
 	if len(args) == 0 {
-		fmt.Println("Usage: chat <id>")
-		fmt.Println("  <id> - Open interactive chat with chat ID")
+		fmt.Println("Usage: chat <command>")
+		fmt.Println("  <id>     - Open interactive chat with chat ID")
+		fmt.Println("  list     - List recent chats")
+		fmt.Println("  list all - List all chats")
+		fmt.Println("  start    - Start the new chat interface")
 		return nil
 	}
 
@@ -228,9 +233,11 @@ func handleChatCommand(args []string) error {
 			return listAllChats()
 		}
 		return listChats()
+	case "start":
+		return startNewChatInterface()
 	default:
 		fmt.Printf("Unknown chat command: %s\n", subcommand)
-		fmt.Println("Available commands: <id>, list")
+		fmt.Println("Available commands: <id>, list, start")
 	}
 
 	return nil
@@ -363,6 +370,43 @@ func startInteractiveChat(chatID string) error {
 	}
 
 	return nil
+}
+
+// startNewChatInterface starts the new chat interface
+func startNewChatInterface() error {
+	fmt.Println("Starting new chat interface...")
+
+	// Create the tview application
+	app := tview.NewApplication()
+
+	// Create the chat interface
+	chatInterface := chat.NewChatInterface(
+		app,
+		func(chatID, message string) error {
+			// Handle message sending
+			return dmInstance.SendMessageByInternalID(chatID, message)
+		},
+		func(chatID, message, replyToID string) error {
+			// Handle reply sending - implement when reply functionality is available
+			return fmt.Errorf("reply functionality not yet implemented")
+		},
+		func(messageID string) error {
+			// Handle message unsending - implement when unsend functionality is available
+			return fmt.Errorf("unsend functionality not yet implemented")
+		},
+	)
+
+	// Load chats into the interface
+	chats, err := dmInstance.GetChats()
+	if err != nil {
+		return fmt.Errorf("failed to load chats: %v", err)
+	}
+
+	// Convert chats to the new format - use existing Chat type
+	chatInterface.SetChats(chats)
+
+	// Run the interface
+	return chatInterface.Run()
 }
 
 // handleNotificationsCommand handles notification-related commands
