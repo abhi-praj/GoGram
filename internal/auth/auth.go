@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/abhi-praj/GoGram/internal/client"
-	"github.com/abhi-praj/GoGram/internal/config"
+	"github.com/abhi-praj/ig-tui/internal/client"
+	"github.com/abhi-praj/ig-tui/internal/config"
 )
 
 // InstagramAuth handles Instagram authentication operations

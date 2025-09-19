@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Davincible/goinsta/v3"
-	"github.com/abhi-praj/GoGram/internal/config"
+	"github.com/abhi-praj/ig-tui/internal/config"
 )
 
 // ClientWrapper wraps the goinsta Instagram client with my additional functionality
