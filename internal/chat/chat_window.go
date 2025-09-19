@@ -291,7 +291,7 @@ func hashString(s string) int {
 
 // getColorTag returns the color tag for tview
 func getColorTag(idx int) string {
-	colors := []string{"red", "blue", "green"}
+	colors := []string{"lightblue", "lightgreen", "lightyellow"}
 	if idx > 0 && idx <= len(colors) {
 		return colors[idx-1]
 	}

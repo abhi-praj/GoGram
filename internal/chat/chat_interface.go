@@ -109,10 +109,15 @@ func (ci *ChatInterface) SetCurrentChat(chat *Chat) {
 
 // handleChatSelect handles when a chat is selected from the menu
 func (ci *ChatInterface) handleChatSelect(chat *Chat) {
+	if chat == nil {
+		ci.statusBar.Update("Error: No chat selected")
+		return
+	}
+
+	ci.statusBar.Update(fmt.Sprintf("Loading chat: %s...", chat.Title))
 	ci.SetCurrentChat(chat)
 	ci.loadChatMessages(chat)
 	ci.app.SetFocus(ci.inputBox)
-	ci.statusBar.Update(fmt.Sprintf("Switched to chat: %s", chat.Title))
 }
 
 // loadChatMessages loads messages for the selected chat
