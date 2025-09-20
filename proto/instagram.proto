@@ -1,0 +1,194 @@
+syntax = "proto3";
+
+package instagram;
+
+option go_package = "github.com/abhi-praj/GoGram/proto/generated";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Instagram service definition
+service InstagramService {
+  // Authentication methods
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc GetAuthStatus(google.protobuf.Empty) returns (AuthStatusResponse);
+  
+  // Chat methods
+  rpc GetChats(GetChatsRequest) returns (GetChatsResponse);
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc StartInteractiveChat(StartInteractiveChatRequest) returns (StartInteractiveChatResponse);
+  
+  // Streaming methods
+  rpc StreamMessages(StreamMessagesRequest) returns (stream MessageUpdate);
+  rpc StreamNotifications(google.protobuf.Empty) returns (stream NotificationUpdate);
+  
+  // Configuration methods
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+  rpc ListConfig(google.protobuf.Empty) returns (ListConfigResponse);
+}
+
+// Authentication messages
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+  string verification_code = 3; // For 2FA
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+  string username = 3;
+}
+
+message LogoutRequest {
+  string username = 1; // Optional, for multi-account support
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message AuthStatusResponse {
+  bool is_logged_in = 1;
+  string username = 2;
+  int32 unread_count = 3;
+  bool notifications_running = 4;
+}
+
+// Chat messages
+message GetChatsRequest {
+  int32 limit = 1; // 0 for no limit
+}
+
+message GetChatsResponse {
+  repeated Chat chats = 1;
+  int32 total_count = 2;
+}
+
+message GetMessagesRequest {
+  string chat_id = 1;
+  int32 limit = 2;
+  string before_message_id = 3; // For pagination
+}
+
+message GetMessagesResponse {
+  repeated Message messages = 1;
+  bool has_more = 2;
+  string next_cursor = 3;
+}
+
+message SendMessageRequest {
+  string chat_id = 1;
+  string message = 2;
+  string reply_to_message_id = 3; // Optional, for replies
+}
+
+message SendMessageResponse {
+  bool success = 1;
+  string message_id = 2;
+  string error = 3;
+}
+
+message StartInteractiveChatRequest {
+  string chat_id = 1;
+}
+
+message StartInteractiveChatResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Streaming messages
+message StreamMessagesRequest {
+  string chat_id = 1;
+}
+
+message MessageUpdate {
+  string chat_id = 1;
+  Message message = 2;
+  MessageUpdateType type = 3;
+}
+
+enum MessageUpdateType {
+  MESSAGE_ADDED = 0;
+  MESSAGE_UPDATED = 1;
+  MESSAGE_DELETED = 2;
+}
+
+message NotificationUpdate {
+  string chat_id = 1;
+  string chat_title = 2;
+  string sender = 3;
+  string message_preview = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  int32 unread_count = 6;
+}
+
+// Configuration messages
+message GetConfigRequest {
+  string key = 1;
+}
+
+message GetConfigResponse {
+  string key = 1;
+  string value = 2;
+  bool found = 3;
+}
+
+message SetConfigRequest {
+  string key = 1;
+  string value = 2;
+}
+
+message SetConfigResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListConfigResponse {
+  repeated ConfigKeyValue configs = 1;
+}
+
+message ConfigKeyValue {
+  string key = 1;
+  string value = 2;
+}
+
+// Data models
+message Chat {
+  string id = 1;
+  string internal_id = 2;
+  string title = 3;
+  repeated User users = 4;
+  string last_message = 5;
+  google.protobuf.Timestamp last_activity = 6;
+  int32 unread_count = 7;
+  bool is_group = 8;
+}
+
+message Message {
+  string id = 1;
+  string text = 2;
+  string sender = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  MessageType type = 5;
+  string chat_id = 6;
+}
+
+enum MessageType {
+  TEXT = 0;
+  MEDIA = 1;
+  SYSTEM = 2;
+}
+
+message User {
+  string id = 1;
+  string username = 2;
+  string full_name = 3;
+  string profile_pic_url = 4;
+  bool is_verified = 5;
+}

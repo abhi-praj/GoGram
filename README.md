@@ -1,19 +1,15 @@
-# IG-TUI - Instagram Terminal User Interface
+# GoGram - Instagram CLI Client
 
-A Go implementation of Instagram Terminal User Interface (TUI), providing a modern terminal-based interface for Instagram messaging with real-time chat functionality.
+A Go implementation of Instagram CLI client, built with the goal of providing a terminal-based interface for Instagram messaging.
 
 ## Features
 
-- **Modern TUI Interface**: Beautiful terminal-based user interface with real-time updates
 - **Authentication**: Login with username/password or saved sessions
 - **Session Management**: Automatic session saving and loading
-- **Real-time Messaging**: Send and receive messages with automatic refresh (every 3 seconds)
-- **Split-panel Layout**: Chat list on the left, conversation on the right
-- **Keyboard Navigation**: Tab to switch panels, Ctrl+Q to quit, Ctrl+R to refresh
-- **Search Functionality**: Search chats by username (@) or title (/)
 - **Configuration**: YAML-based configuration with dot notation support
 - **Account Switching**: Switch between multiple Instagram accounts
 - **2FA Support**: Built-in support for two-factor authentication
+- **Interactive Chat**: Real-time messaging with automatic message updates
 
 ## Installation
 
@@ -25,132 +21,142 @@ A Go implementation of Instagram Terminal User Interface (TUI), providing a mode
 ### Build from Source
 
 ```bash
-git clone https://github.com/abhi-praj/ig-tui
-cd ig-tui
-go build -o ig-tui cmd/ig-tui/main.go
+git clone <repository-url>
+go mod tidy
+go build -o ig-cli cmd/ig-cli/main.go
 ```
 
 ## Usage
 
-Simply run the TUI application:
+### Basic Commands
 
 ```bash
-./ig-tui
+# Display help and title
+./ig-cli
+
+# Show version
+./ig-cli version
+
+# Get help for auth commands
+./ig-cli auth --help
 ```
 
-The application will:
-1. Automatically handle login (prompts for credentials if needed)
-2. Launch the TUI interface with your Instagram chats
-3. Display a split-panel interface with chat list and conversation view
+### Authentication
 
-### TUI Interface
+```bash
+# Login to Instagram
+./ig-cli auth login
 
-- **Left Panel**: Browse your Instagram conversations
-- **Right Panel**: View messages and send new ones
-- **Status Bar**: Shows helpful information and current status
+# Logout from Instagram
+./ig-cli auth logout
 
-### Keyboard Shortcuts
+# Switch to a different account
+./ig-cli auth switch username
 
-- **Tab**: Switch focus between chat list and input box
-- **Ctrl+Q**: Quit the application
-- **Ctrl+R**: Refresh current chat messages
-- **Enter**: Select chat (in chat list) or send message (in input box)
-- **Arrow Keys**: Navigate through chats
-- **@username**: Search for chats by username
-- **/title**: Search for chats by title
+### Interactive Chat
 
-### How to Use
+```bash
+# Open interactive chat with a specific chat ID
+./ig-cli chat <chat_id>
 
-1. **Start the application**: Run `./ig-tui`
-2. **Login**: Enter your Instagram credentials when prompted
-3. **Browse chats**: Use arrow keys in the left panel to navigate
-4. **Select a chat**: Press Enter to open a conversation
-5. **Send messages**: Type in the input box and press Enter
-6. **Switch panels**: Use Tab to move between chat list and input
-7. **Search**: Type @ or / to search for specific chats
+# List available chats to find chat IDs
+./ig-cli chat list
+```
+```
+
+### Configuration
+
+```bash
+# List all configuration values
+./ig-cli config list
+
+# Get a specific configuration value
+./ig-cli config get login.current_username
+
+# Set a configuration value
+./ig-cli config set login.current_username myusername
+
+# Reset configuration to defaults
+./ig-cli config reset
+```
 
 ## Configuration
 
-The application uses YAML-based configuration stored in `~/.config/ig-tui/config.yaml`.
-
-### Configuration Options
+The application creates a configuration file at `~/.instagram-cli/config.yaml` with the following structure:
 
 ```yaml
+language: en
 login:
-  current_username: "your_username"
-  save_session: true
-
+  default_username: null
+  current_username: null
 chat:
-  auto_refresh: true
-  refresh_interval: 3s
-  message_limit: 20
-
-ui:
-  theme: "default"
-  show_timestamps: true
+  layout: compact
+  colors: true
+scheduling:
+  default_schedule_duration: "01:00"
+privacy:
+  invisible_mode: false
+advanced:
+  debug_mode: false
+  data_dir: ~/.instagram-cli
+  users_dir: ~/.instagram-cli/users
+  cache_dir: ~/.instagram-cli/cache
+  media_dir: ~/.instagram-cli/media
+  generated_dir: ~/.instagram-cli/generated
 ```
+
+## Session Management
+
+Sessions are automatically saved to `~/.instagram-cli/users/<username>/session.json` after successful login. This allows you to stay logged in between application restarts.
+
+## Interactive Chat
+
+For detailed information about the interactive chat feature, see [INTERACTIVE_CHAT.md](INTERACTIVE_CHAT.md).
+
+The interactive chat provides:
+- Real-time messaging with automatic updates
+- Last 10 messages displayed on entry
+- Built-in commands for chat management
+- Support for both direct messages and group chats
 
 ## Development
 
 ### Project Structure
 
 ```
-ig-tui-go/
-├── cmd/ig-tui/          # Main TUI entry point
+ig-cli-go/
+├── cmd/ig-cli/          # Main CLI entry point
 ├── internal/            # Internal packages
 │   ├── auth/           # Authentication logic
 │   ├── client/         # Instagram client wrapper
-│   ├── chat/           # TUI chat interface
 │   └── config/         # Configuration management
 ├── pkg/                # Public packages
-└── go.mod              # Go module definition
+└── go.mod              # Go module file
 ```
 
 ### Building
 
 ```bash
 # Build for current platform
-go build -o ig-tui cmd/ig-tui/main.go
+go build -o ig-cli cmd/ig-cli/main.go
 
 # Build for specific platforms
-GOOS=windows GOARCH=amd64 go build -o ig-tui.exe cmd/ig-tui/main.go
-GOOS=linux GOARCH=amd64 go build -o ig-tui cmd/ig-tui/main.go
-GOOS=darwin GOARCH=amd64 go build -o ig-tui cmd/ig-tui/main.go
+GOOS=windows GOARCH=amd64 go build -o ig-cli.exe cmd/ig-cli/main.go
+GOOS=linux GOARCH=amd64 go build -o ig-cli cmd/ig-cli/main.go
+GOOS=darwin GOARCH=amd64 go build -o ig-cli cmd/ig-cli/main.go
 ```
 
 ## Dependencies
 
 - [goinsta](https://github.com/Davincible/goinsta) - Instagram API client
-- [tview](https://github.com/rivo/tview) - Terminal UI framework
-- [viper](https://github.com/spf13/viper) - Configuration management
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- [Cobra](https://github.com/spf13/cobra) - CLI framework
+- [Viper](https://github.com/spf13/viper) - Configuration management
+- [YAML](https://gopkg.in/yaml.v3) - YAML parsing
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## Disclaimer
 
-This tool is for educational purposes only. Use it responsibly and in accordance with Instagram's Terms of Service. The developers are not responsible for any misuse or violations of Instagram's policies.
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Login fails**: Make sure your Instagram credentials are correct and 2FA is properly handled
-2. **Messages not loading**: Check your internet connection and Instagram account status
-3. **TUI not displaying correctly**: Ensure your terminal supports the required features
-
-### Support
-
-If you encounter issues, please:
-1. Check the troubleshooting section
-2. Search existing issues on GitHub
-3. Create a new issue with detailed information about your problem
+This project is not affiliated with, authorized, or endorsed by Instagram or any of its affiliates or subsidiaries. This is an independent and unofficial project. Use at your own risk.

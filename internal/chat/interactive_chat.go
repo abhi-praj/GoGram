@@ -48,9 +48,18 @@ func IsSubcommand(arg string) bool {
 
 // Start begins the interactive chat session
 func (ic *InteractiveChat) Start() error {
+	// Pause global notifications while in interactive chat
+	if ic.dm.notificationMgr != nil {
+		ic.dm.notificationMgr.Pause()
+	}
+
 	// Get chat details
 	chat, err := ic.dm.GetChatByInternalID(ic.chatID)
 	if err != nil {
+		// Resume notifications on error
+		if ic.dm.notificationMgr != nil {
+			ic.dm.notificationMgr.Resume()
+		}
 		return fmt.Errorf("failed to get chat: %v", err)
 	}
 
@@ -64,6 +73,10 @@ func (ic *InteractiveChat) Start() error {
 	}
 
 	if conversation == nil {
+		// Resume notifications on error
+		if ic.dm.notificationMgr != nil {
+			ic.dm.notificationMgr.Resume()
+		}
 		return fmt.Errorf("conversation not found")
 	}
 
@@ -85,7 +98,14 @@ func (ic *InteractiveChat) Start() error {
 	go ic.messageReceiver()
 
 	// Start input handler
-	return ic.inputHandler()
+	err = ic.inputHandler()
+
+	// Always resume notifications when exiting chat
+	if ic.dm.notificationMgr != nil {
+		ic.dm.notificationMgr.Resume()
+	}
+
+	return err
 }
 
 // displayChatHeader shows the chat information header

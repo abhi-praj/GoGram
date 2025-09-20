@@ -30,8 +30,8 @@ func NewChatMenu(app *tview.Application, onChatSelect func(*Chat)) *ChatMenu {
 	list := tview.NewList().
 		ShowSecondaryText(false).
 		SetMainTextColor(tcell.ColorWhite).
-		SetSelectedTextColor(tcell.ColorWhite).
-		SetSelectedBackgroundColor(tcell.ColorBlue)
+		SetSelectedTextColor(tcell.ColorBlack).
+		SetSelectedBackgroundColor(tcell.ColorYellow)
 
 	cm := &ChatMenu{
 		List:         list,
@@ -60,28 +60,12 @@ func NewChatMenu(app *tview.Application, onChatSelect func(*Chat)) *ChatMenu {
 	cm.statusBar.SetDynamicColors(true)
 	cm.statusBar.SetTextAlign(tview.AlignCenter)
 	cm.statusBar.SetBorder(false)
-	cm.statusBar.SetBackgroundColor(tcell.ColorDarkBlue)
-	cm.statusBar.SetTextColor(tcell.ColorWhite)
+	cm.statusBar.SetBackgroundColor(tcell.ColorYellow)
+	cm.statusBar.SetTextColor(tcell.ColorBlack)
 
 	// Set up input handling
 	cm.searchInput.SetDoneFunc(cm.handleSearchDone)
 	list.SetSelectedFunc(cm.handleChatSelect)
-
-	// Add key handler for the list
-	list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlQ:
-			app.Stop()
-			return nil
-		case tcell.KeyTab:
-			// Let the global handler deal with Tab
-			return event
-		case tcell.KeyCtrlR:
-			// Let the global handler deal with Ctrl+R
-			return event
-		}
-		return event
-	})
 
 	return cm
 }
@@ -195,10 +179,8 @@ func (cm *ChatMenu) performSearch(query string) {
 
 // handleChatSelect processes chat selection
 func (cm *ChatMenu) handleChatSelect(index int, mainText, secondaryText string, shortcut rune) {
-	if index >= 0 && index < len(cm.chats) {
-		if cm.onChatSelect != nil {
-			cm.onChatSelect(cm.chats[index])
-		}
+	if index >= 0 && index < len(cm.chats) && cm.onChatSelect != nil {
+		cm.onChatSelect(cm.chats[index])
 	}
 }
 

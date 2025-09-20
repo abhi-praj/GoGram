@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -29,11 +28,10 @@ type ChatInterface struct {
 	onMessageSend        func(string, string) error
 	onReplySend          func(string, string, string) error
 	onUnsendMessage      func(string) error
-	dmInstance           *DirectMessages
 }
 
 // NewChatInterface creates a new chat interface
-func NewChatInterface(app *tview.Application, onMessageSend func(string, string) error, onReplySend func(string, string, string) error, onUnsendMessage func(string) error, dmInstance *DirectMessages) *ChatInterface {
+func NewChatInterface(app *tview.Application, onMessageSend func(string, string) error, onReplySend func(string, string, string) error, onUnsendMessage func(string) error) *ChatInterface {
 	ci := &ChatInterface{
 		app:                  app,
 		mode:                 ChatModeChat,
@@ -44,7 +42,6 @@ func NewChatInterface(app *tview.Application, onMessageSend func(string, string)
 		onMessageSend:        onMessageSend,
 		onReplySend:          onReplySend,
 		onUnsendMessage:      onUnsendMessage,
-		dmInstance:           dmInstance,
 	}
 
 	// Initialize components
@@ -61,29 +58,26 @@ func NewChatInterface(app *tview.Application, onMessageSend func(string, string)
 
 // setupLayout sets up the application layout
 func (ci *ChatInterface) setupLayout() {
-	// Create main horizontal layout
-	mainFlex := tview.NewFlex().SetDirection(tview.FlexColumn)
+	// Create a flex layout
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// Create left panel for chat list
-	leftPanel := tview.NewFlex().SetDirection(tview.FlexRow)
-	leftPanel.AddItem(ci.chatMenu, 0, 1, true)
-	leftPanel.AddItem(ci.chatMenu.GetSearchInput(), 3, 0, false)
+	// Add chat menu at the top (1/3 of height)
+	flex.AddItem(ci.chatMenu, 0, 1, false)
 
-	// Create right panel for chat and input
-	rightPanel := tview.NewFlex().SetDirection(tview.FlexRow)
-	rightPanel.AddItem(ci.chatWindow, 0, 1, false)
-	rightPanel.AddItem(ci.inputBox, 3, 0, false)
-	rightPanel.AddItem(ci.statusBar, 1, 0, false)
+	// Add search input below chat menu
+	flex.AddItem(ci.chatMenu.GetSearchInput(), 3, 0, false)
 
-	// Add panels to main layout (30% left, 70% right)
-	mainFlex.AddItem(leftPanel, 0, 3, true)
-	mainFlex.AddItem(rightPanel, 0, 7, false)
+	// Add chat window in the middle (2/3 of height)
+	flex.AddItem(ci.chatWindow, 0, 2, false)
+
+	// Add input box at the bottom
+	flex.AddItem(ci.inputBox, 6, 0, false)
+
+	// Add status bar at the very bottom
+	flex.AddItem(ci.statusBar, 1, 0, false)
 
 	// Set the root
-	ci.app.SetRoot(mainFlex, true)
-
-	// Set up global key handlers
-	ci.app.SetInputCapture(ci.handleGlobalKeys)
+	ci.app.SetRoot(flex, true)
 
 	// Set focus to chat menu initially
 	ci.app.SetFocus(ci.chatMenu)
@@ -109,42 +103,9 @@ func (ci *ChatInterface) SetCurrentChat(chat *Chat) {
 
 // handleChatSelect handles when a chat is selected from the menu
 func (ci *ChatInterface) handleChatSelect(chat *Chat) {
-	if chat == nil {
-		ci.statusBar.Update("Error: No chat selected")
-		return
-	}
-
-	ci.statusBar.Update(fmt.Sprintf("Loading chat: %s...", chat.Title))
 	ci.SetCurrentChat(chat)
-	ci.loadChatMessages(chat)
 	ci.app.SetFocus(ci.inputBox)
-}
-
-// loadChatMessages loads messages for the selected chat
-func (ci *ChatInterface) loadChatMessages(chat *Chat) {
-	if ci.dmInstance == nil {
-		ci.statusBar.Update("Error: DM instance not available")
-		return
-	}
-
-	ci.statusBar.Update("Loading messages...")
-
-	// Load messages in a goroutine to avoid blocking the UI
-	go func() {
-		messages, err := ci.dmInstance.GetChatHistory(chat.InternalID, ci.messagesPerFetch)
-		if err != nil {
-			ci.app.QueueUpdateDraw(func() {
-				ci.statusBar.Update(fmt.Sprintf("Failed to load messages: %v", err))
-			})
-			return
-		}
-
-		// Update UI on main thread
-		ci.app.QueueUpdateDraw(func() {
-			ci.SetMessages(messages)
-			ci.statusBar.Update(fmt.Sprintf("Loaded %d messages for %s", len(messages), chat.Title))
-		})
-	}()
+	ci.statusBar.Update(fmt.Sprintf("Switched to chat: %s", chat.Title))
 }
 
 // handleMessageSubmit handles message submission from the input box
@@ -179,11 +140,6 @@ func (ci *ChatInterface) handleMessageSubmit(message string) {
 				ci.statusBar.Update(fmt.Sprintf("Failed to send message: %v", err))
 			} else {
 				ci.statusBar.Update("Message sent")
-				// Refresh messages after sending
-				go func() {
-					time.Sleep(500 * time.Millisecond) // Small delay to allow message to be processed
-					ci.loadChatMessages(ci.currentChat)
-				}()
 			}
 		}
 	}
@@ -211,7 +167,7 @@ func (ci *ChatInterface) StopRefresh() {
 
 // refreshChat refreshes the chat messages in the background
 func (ci *ChatInterface) refreshChat() {
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -219,22 +175,12 @@ func (ci *ChatInterface) refreshChat() {
 		case <-ci.stopRefresh:
 			return
 		case <-ticker.C:
-			if ci.refreshEnabled && ci.currentChat != nil && ci.dmInstance != nil {
+			if ci.refreshEnabled && ci.currentChat != nil {
 				ci.refreshLock.Lock()
-				go func() {
-					defer ci.refreshLock.Unlock()
-
-					// Fetch latest messages
-					messages, err := ci.dmInstance.GetChatHistory(ci.currentChat.InternalID, ci.messagesPerFetch)
-					if err != nil {
-						return
-					}
-
-					// Update UI on main thread
-					ci.app.QueueUpdateDraw(func() {
-						ci.SetMessages(messages)
-					})
-				}()
+				// Here you would typically fetch new messages
+				// For now, we'll just update the display
+				ci.chatWindow.Update()
+				ci.refreshLock.Unlock()
 			}
 		}
 	}
@@ -296,38 +242,8 @@ func (ci *ChatInterface) GetChatMenu() *ChatMenu {
 	return ci.chatMenu
 }
 
-// handleGlobalKeys handles global keyboard shortcuts
-func (ci *ChatInterface) handleGlobalKeys(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyCtrlQ:
-		// Quit application
-		ci.app.Stop()
-		return nil
-	case tcell.KeyTab:
-		// Switch focus between panels
-		if ci.app.GetFocus() == ci.chatMenu {
-			ci.app.SetFocus(ci.inputBox)
-		} else {
-			ci.app.SetFocus(ci.chatMenu)
-		}
-		return nil
-	case tcell.KeyCtrlR:
-		// Refresh current chat
-		if ci.currentChat != nil {
-			ci.loadChatMessages(ci.currentChat)
-		}
-		return nil
-	}
-	return event
-}
-
 // Run starts the chat interface
 func (ci *ChatInterface) Run() error {
-	// Set initial status message after app starts
-	go func() {
-		ci.statusBar.Update("Welcome to IG-TUI! Use Tab to switch panels, Ctrl+Q to quit, Ctrl+R to refresh")
-	}()
-
 	ci.StartRefresh()
 	return ci.app.Run()
 }

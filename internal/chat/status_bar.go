@@ -31,8 +31,8 @@ func NewStatusBar(app *tview.Application) *StatusBar {
 
 	// Set up the text view
 	tv.SetBorder(false)
-	tv.SetBackgroundColor(tcell.ColorDarkBlue)
-	tv.SetTextColor(tcell.ColorWhite)
+	tv.SetBackgroundColor(tcell.ColorYellow)
+	tv.SetTextColor(tcell.ColorBlack)
 
 	return sb
 }

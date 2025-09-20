@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/abhi-praj/ig-tui/internal/auth"
-	"github.com/abhi-praj/ig-tui/internal/chat"
-	"github.com/abhi-praj/ig-tui/internal/client"
+	"github.com/abhi-praj/GoGram/internal/auth"
+	"github.com/abhi-praj/GoGram/internal/chat"
+	"github.com/abhi-praj/GoGram/internal/client"
 	"github.com/rivo/tview"
 )
 

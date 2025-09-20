@@ -47,22 +47,6 @@ func NewInputBox(app *tview.Application, onSubmit func(string)) *InputBox {
 	// Set up input handling
 	input.SetDoneFunc(ib.handleDone)
 
-	// Add key handler for global shortcuts
-	input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyCtrlQ:
-			app.Stop()
-			return nil
-		case tcell.KeyTab:
-			// Let the global handler deal with Tab
-			return event
-		case tcell.KeyCtrlR:
-			// Let the global handler deal with Ctrl+R
-			return event
-		}
-		return event
-	})
-
 	return ib
 }
 
